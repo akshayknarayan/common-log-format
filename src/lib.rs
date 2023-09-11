@@ -32,15 +32,49 @@ use http::{status::InvalidStatusCode, StatusCode};
 /// let line = "127.0.0.1 - - [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326";
 /// let entry: LogEntry = line.parse().unwrap();
 /// ```
-#[derive(Debug)]
+/// `LogEntry` implements `serde::Serialize` and `serde::Deserialize`:
+/// ```
+/// use common_log_format::LogEntry;
+/// let line = "127.0.0.1 - - [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326";
+/// let entry: LogEntry = line.parse().unwrap();
+/// let s = serde_json::to_string(&entry).unwrap();
+/// let de_entry: LogEntry = serde_json::from_str(&s).unwrap();
+/// assert_eq!(de_entry, entry);
+/// ```
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LogEntry {
     pub host: Option<IpAddr>,
     pub ident: Option<String>,
     pub authuser: Option<String>,
     pub time: Option<chrono::DateTime<Utc>>,
     pub request_line: Option<String>,
+    #[serde(
+        serialize_with = "serialize_status_code",
+        deserialize_with = "deserialize_status_code"
+    )]
     pub status_code: Option<StatusCode>,
     pub object_size: Option<usize>,
+}
+
+fn serialize_status_code<S>(sc: &Option<StatusCode>, ser: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::ser::Serialize;
+    sc.map(|s| s.as_u16()).serialize(ser)
+}
+
+fn deserialize_status_code<'de, D>(de: D) -> Result<Option<StatusCode>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    match <Option<u16> as serde::Deserialize<'de>>::deserialize(de)? {
+        Some(sc) => match StatusCode::from_u16(sc) {
+            Ok(s) => Ok(Some(s)),
+            Err(_) => Ok(None),
+        },
+        None => Ok(None),
+    }
 }
 
 /// An error parsing a [`LogEntry`].
