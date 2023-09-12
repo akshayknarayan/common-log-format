@@ -23,19 +23,19 @@ use http::{status::InvalidStatusCode, StatusCode};
 /// # Example
 /// ```
 /// use common_log_format::LogEntry;
-/// let line = "127.0.0.1 user-identifier frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326";
+/// let line = "127.0.0.1 user-identifier frank [1996-12-19T16:39:57-08:00] \"GET /apache_pb.gif HTTP/1.0\" 200 2326";
 /// let entry: LogEntry = line.parse().unwrap();
 /// ```
 /// Dashes represent missing fields:
 /// ```
 /// use common_log_format::LogEntry;
-/// let line = "127.0.0.1 - - [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326";
+/// let line = "127.0.0.1 - - [1996-12-19T16:39:57-08:00] \"GET /apache_pb.gif HTTP/1.0\" 200 2326";
 /// let entry: LogEntry = line.parse().unwrap();
 /// ```
 /// `LogEntry` implements `serde::Serialize` and `serde::Deserialize`:
 /// ```
 /// use common_log_format::LogEntry;
-/// let line = "127.0.0.1 - - [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326";
+/// let line = "127.0.0.1 - - [1996-12-19T16:39:57-08:00] \"GET /apache_pb.gif HTTP/1.0\" 200 2326";
 /// let entry: LogEntry = line.parse().unwrap();
 /// let s = serde_json::to_string(&entry).unwrap();
 /// let de_entry: LogEntry = serde_json::from_str(&s).unwrap();
@@ -214,7 +214,7 @@ pub fn peel_timestamp(line: &str) -> Result<(Option<DateTime<Utc>>, &str), LogEn
     }
 
     let time_end_idx = line.find(']').ok_or(LogEntryParseError::FieldNotFound)?;
-    let dt = DateTime::parse_from_str(&line[1..time_end_idx], "%d/%b/%Y:%H:%M:%S %z")
+    let dt = DateTime::parse_from_rfc3339(&line[1..time_end_idx])
         .map_err(LogEntryParseError::DateTimeParse)?;
     Ok((Some(dt.into()), line[time_end_idx + 1..].trim_start()))
 }
